@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Trained model (rebuilt automatically by backend/train_model.py)
+backend/phishing_model.pkl
+
+# Node / Vite
+node_modules/
+dist/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Old files kept locally, not part of the project
+_archive/

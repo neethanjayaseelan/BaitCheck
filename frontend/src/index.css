@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-paper font-sans text-ink antialiased;
+}
+
+::selection {
+  background-color: #ffe27a;
+  color: #172033;
+}
+
+@layer components {
+  /* The message "sheet": the one surface on the page that looks like paper. */
+  .sheet {
+    @apply rounded-md border border-rule bg-surface px-6 py-5 text-ink shadow-[0_1px_2px_rgba(23,32,51,0.06)] sm:px-8 sm:py-7;
+  }
+
+  textarea.sheet:focus {
+    @apply border-focus outline-none ring-2 ring-focus/25;
+  }
+
+  .highlight {
+    @apply rounded-sm px-0.5 text-ink;
+    background: linear-gradient(transparent 12%, #ffe27a 12%, #ffe27a 88%, transparent 88%);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center rounded-md bg-ink px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[#2a3650] disabled:cursor-not-allowed disabled:bg-muted/40;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center rounded-md border border-rule bg-surface px-4 py-2 text-[0.9375rem] font-medium text-ink transition-colors hover:border-muted/60;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid #2952cc;
+  outline-offset: 2px;
+}
+
+.meter-fill {
+  animation: fill 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: left;
+}
+
+@keyframes fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter-fill {
+    animation: none;
+  }
+}
