@@ -41,8 +41,8 @@ React UI  ──POST /analyze──▶  Flask API  ──▶  TF-IDF + Logistic 
 **Requirements:** Python 3.10+ and Node.js 18+
 
 ```bash
-git clone https://github.com/neethanjayaseelan/LinkGuard.git
-cd LinkGuard
+git clone https://github.com/neethanjayaseelan/BaitCheck.git
+cd BaitCheck
 ```
 
 ### Quick start (Windows)
