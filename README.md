@@ -70,6 +70,16 @@ npm run dev                     # http://localhost:5173
 
 Optional Streamlit UI: `cd backend && streamlit run streamlit_app.py`
 
+## No-install version
+
+`docs/index.html` is a single-page version of Baitcheck that runs entirely in the browser, with no backend. Open the file directly, or serve the `docs/` folder with GitHub Pages. It has three parts:
+
+- **Email checker**: paste a sender, subject and message to get a 0–100 risk score and the warning signs found.
+- **Check links**: paste a link to see the real website behind it and the tricks used to disguise it (lookalike spellings, a brand name in front of another site, shorteners, `@` tricks).
+- **Scam news**: short write-ups of recent phishing scams, each linked to its source.
+
+This version uses rule-based checks only (no machine-learning model), and its scam articles are written into the page rather than fetched live.
+
 ## API
 
 `POST /analyze`
@@ -131,6 +141,8 @@ python -m unittest discover tests
 │   └── requirements.txt
 ├── data/
 │   └── phishingdata.csv   # labelled training messages
+├── docs/
+│   └── index.html         # no-install single-page version (GitHub Pages ready)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx

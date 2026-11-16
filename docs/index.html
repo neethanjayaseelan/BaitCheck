@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Check an email, check a link, and read about recent phishing scams.">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Baitcheck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two tools in one page. "Check an email" (paste and scan) and "Recent scams" (why it matters). One calm reading column each. */
+:root {
+  --bg: #F1F5F4;
+  --surface: #FFFFFF;
+  --fg: #13211F;
+  --muted: #5A6B68;
+  --line: #D8E1DF;
+  --accent: #0E6B63;
+  --accent-soft: #DDEEEB;
+  --warn: #B4400F;
+  --warn-soft: #FBE7DC;
+  --caution: #946200;
+  --caution-soft: #FBF0D4;
+  --ok: #1F7A3E;
+  --ok-soft: #DDF1E3;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1615; --surface: #15211F; --fg: #E2EBE9; --muted: #93A6A2; --line: #263633;
+    --accent: #5FC4B7; --accent-soft: #183532; --warn: #F2925E; --warn-soft: #3A2117;
+    --caution: #E8C062; --caution-soft: #362C12; --ok: #6BCF8E; --ok-soft: #16301F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1615; --surface: #15211F; --fg: #E2EBE9; --muted: #93A6A2; --line: #263633;
+  --accent: #5FC4B7; --accent-soft: #183532; --warn: #F2925E; --warn-soft: #3A2117;
+  --caution: #E8C062; --caution-soft: #362C12; --ok: #6BCF8E; --ok-soft: #16301F;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: 880px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Top bar with the two-function switch */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+.switch { display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.switch button {
+  font: 600 0.88rem var(--font-body); color: var(--muted); background: none; border: 0;
+  border-radius: 999px; padding: 7px 16px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+.switch button[aria-selected="true"] { background: var(--accent); color: var(--surface); }
+@media (max-width: 520px) { .switch { width: 100%; } .switch button { flex: 1; justify-content: center; padding: 7px 8px; font-size: 0.82rem; } }
+.linkrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.linkrow input { flex: 1 1 260px; min-width: 0; }
+.where { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+.where .lbl { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.where .host { font-family: var(--font-mono); font-size: 1.05rem; overflow-wrap: anywhere; color: var(--muted); }
+.where .host b { color: var(--fg); background: var(--accent-soft); padding: 1px 4px; border-radius: 4px; font-weight: 500; }
+.where small { color: var(--muted); font-size: 0.85rem; }
+.switch .count { font-family: var(--font-mono); font-size: 0.7rem; background: var(--warn); color: var(--surface); border-radius: 999px; padding: 0 6px; }
+
+/* Shared type */
+.hero { padding-block: 36px 20px; display: grid; gap: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0; font-weight: 500; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2rem, 6vw, 3rem); line-height: 1.05; letter-spacing: -0.025em; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); font-size: 1.05rem; max-width: 60ch; margin: 0; }
+section { padding-block: 24px; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.45rem; letter-spacing: -0.015em; margin: 0 0 16px; text-wrap: balance; }
+
+/* "Why bother" strip on the checker tab */
+.why {
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent);
+  border-radius: 12px; padding: 12px 16px; font-size: 0.92rem;
+}
+.why b { color: var(--warn); }
+.why button { margin-left: auto; }
+
+/* Checker form */
+.form { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label { font-weight: 600; font-size: 0.88rem; }
+.field small { color: var(--muted); font-weight: 400; }
+.field input, .field textarea {
+  width: 100%; font: 400 0.95rem var(--font-body); color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.field input.mono { font-family: var(--font-mono); font-size: 0.88rem; }
+.field textarea { min-height: 170px; resize: vertical; line-height: 1.5; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .row2 { grid-template-columns: 1fr; } }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn {
+  font: 600 0.92rem var(--font-body); border-radius: 999px; padding: 9px 18px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.primary:hover { filter: brightness(1.08); }
+.privacy { color: var(--muted); font-size: 0.82rem; margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+/* Result */
+.result { display: grid; gap: 14px; margin-top: 18px; }
+.verdict { border-radius: 16px; padding: 20px; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; border: 1px solid transparent; }
+.verdict.bad { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.verdict.mid { background: var(--caution-soft); border-color: color-mix(in srgb, var(--caution) 30%, transparent); }
+.verdict.good { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.gauge { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; color: var(--surface); font-variant-numeric: tabular-nums; }
+.bad .gauge { background: var(--warn); } .mid .gauge { background: var(--caution); } .good .gauge { background: var(--ok); }
+.verdict h3 { font-family: var(--font-display); font-size: 1.35rem; margin: 0; line-height: 1.15; }
+.verdict p { margin: 4px 0 0; font-size: 0.92rem; }
+.findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.finding { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; min-width: 0; }
+.finding b { display: block; font-weight: 600; }
+.finding span { color: var(--muted); font-size: 0.88rem; }
+.finding code { font-family: var(--font-mono); font-size: 0.82rem; background: var(--bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; color: var(--fg); }
+.sev { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap; margin-top: 2px; }
+.sev.high { background: var(--warn); color: var(--surface); }
+.sev.med { background: var(--caution-soft); color: var(--caution); }
+.sev.low { background: var(--accent-soft); color: var(--accent); }
+.sev.pass { background: var(--ok-soft); color: var(--ok); }
+.subhead { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 8px 0 0; font-weight: 500; }
+.note { color: var(--muted); font-size: 0.82rem; margin: 0; }
+
+/* Articles */
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); }
+.pill { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.pill.hot { background: var(--warn); color: var(--surface); }
+.tell { font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; }
+.tell::before { content: "THE TELL  "; color: var(--warn); font-weight: 500; letter-spacing: 0.06em; }
+.card .tell { background: var(--bg); }
+.readmore { font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+.readmore:hover { text-decoration: underline; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 8px; }
+.stat { background: var(--surface); padding: 16px; display: grid; gap: 4px; min-width: 0; }
+.stat b { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+@media (max-width: 600px) { .stats { grid-template-columns: 1fr; } }
+
+.featured { background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); border-radius: 16px; padding: 24px; display: grid; gap: 12px; }
+.featured h3 { font-family: var(--font-display); font-size: 1.5rem; line-height: 1.15; margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+.featured p { margin: 0; max-width: 65ch; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.filter { font: 500 0.88rem var(--font-body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.filter:hover { border-color: var(--accent); }
+.filter[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.search { flex: 1 1 200px; min-width: 0; font: 400 0.92rem var(--font-body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; }
+
+.feed { display: grid; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 10px; min-width: 0; transition: border-color .15s, transform .15s; }
+.card:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); transform: translateY(-1px); }
+.card h3 { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1.25; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.card p { margin: 0; max-width: 68ch; }
+.card.match { border-color: var(--warn); }
+.empty { color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: 14px; }
+
+.cta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; background: var(--accent-soft); border-radius: 16px; padding: 20px; }
+.cta b { font-family: var(--font-display); font-size: 1.15rem; }
+
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; }
+.steps li::before { content: counter(s); font-family: var(--font-display); font-weight: 700; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--surface); }
+.steps b { display: block; }
+.steps span { color: var(--muted); font-size: 0.92rem; }
+
+footer { border-top: 1px solid var(--line); margin-top: 24px; }
+footer .wrap { padding-block: 22px 40px; color: var(--muted); font-size: 0.82rem; display: grid; gap: 6px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7" stroke="currentColor" stroke-width="2.2" fill="none"/><path d="M15.8 15.8 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="M7.4 10.7l2.2 2.2 4-4.4" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      Baitcheck
+    </div>
+    <div class="switch" role="tablist" aria-label="Choose a tool">
+      <button role="tab" id="tab-check" aria-controls="view-check" aria-selected="true" data-view="check">Email checker</button>
+      <button role="tab" id="tab-link" aria-controls="view-link" aria-selected="false" data-view="link">Check links</button>
+      <button role="tab" id="tab-news" aria-controls="view-news" aria-selected="false" data-view="news">Scam news <span class="count" id="newsCount">8</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ VIEW 1: CHECKER ============ -->
+  <div id="view-check" role="tabpanel" aria-labelledby="tab-check">
+    <div class="hero">
+      <p class="eyebrow">Email checker</p>
+      <h1>Is this email safe to click?</h1>
+      <p class="lede">Paste a message you're not sure about. Baitcheck looks for the signs real scams use and tells you what it found, and which recent scam it looks like.</p>
+    </div>
+
+    <div class="why">
+      <span><b>Why bother?</b> 8 phishing scams were reported in the last six weeks alone, including one that steals Microsoft accounts through the real sign-in page.</span>
+      <button class="btn" type="button" data-go="news">See the scams →</button>
+    </div>
+
+    <section aria-labelledby="form-h">
+      <h2 id="form-h" hidden>Paste the email</h2>
+      <form class="form" id="form">
+        <div class="row2">
+          <div class="field">
+            <label for="from">Sender's email address <small>(the part in &lt; &gt;)</small></label>
+            <input id="from" class="mono" type="text" placeholder="billing@ezpass-pay.top" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="subject">Subject line</label>
+            <input id="subject" type="text" placeholder="Final notice: unpaid toll" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label for="body">Email text and links <small>(paste the whole thing)</small></label>
+          <textarea id="body" placeholder="Dear customer, you have an unpaid toll balance..."></textarea>
+        </div>
+        <div class="actions">
+          <button class="btn primary" type="submit">Check this email</button>
+          <button class="btn" type="button" id="sample">Try an example</button>
+          <button class="btn" type="button" id="clear">Clear</button>
+          <span class="privacy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2"/></svg>Checked on this page only. Nothing is sent anywhere.</span>
+        </div>
+      </form>
+
+      <div class="result" id="result" aria-live="polite" hidden></div>
+    </section>
+  </div>
+
+  <!-- ============ VIEW 2: LINK CHECKER ============ -->
+  <div id="view-link" role="tabpanel" aria-labelledby="tab-link" hidden>
+    <div class="hero">
+      <p class="eyebrow">Link checker</p>
+      <h1>Where does this link really go?</h1>
+      <p class="lede">Paste a link from an email, text or QR code before you open it. Baitcheck shows the real website behind it and flags the tricks scammers use to disguise an address.</p>
+    </div>
+
+    <div class="why">
+      <span><b>Why bother?</b> The fake E-ZPass toll scam relies on one "Pay Now" link. Checking it first is what stops the scam.</span>
+      <button class="btn" type="button" data-go="news">See the scams →</button>
+    </div>
+
+    <section aria-label="Check a link">
+      <form class="form" id="linkForm">
+        <div class="field">
+          <label for="url">Link to check <small>(copy it, don't click it: right-click or long-press, then "Copy link")</small></label>
+          <div class="linkrow">
+            <input id="url" class="mono" type="text" inputmode="url" placeholder="http://ezpass-tollpay.top/settle" autocomplete="off" spellcheck="false" autocapitalize="off">
+            <button class="btn primary" type="submit">Check this link</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="linkSample">Try an example</button>
+          <button class="btn" type="button" id="linkClear">Clear</button>
+          <span class="privacy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2"/></svg>The link is only read, never opened.</span>
+        </div>
+      </form>
+      <div class="result" id="linkResult" aria-live="polite" hidden></div>
+    </section>
+  </div>
+
+  <!-- ============ VIEW 3: NEWS ============ -->
+  <div id="view-news" role="tabpanel" aria-labelledby="tab-news" hidden>
+    <div class="hero">
+      <p class="eyebrow">Scam news · updated 13 Nov 2026</p>
+      <h1>The phishing scams going around right now</h1>
+      <p class="lede">Short write-ups of recent scams reported by the FBI, news outlets and companies, each with the one detail that gives it away. This is why it's worth checking before you click.</p>
+      <div class="stats" role="list">
+        <div class="stat" role="listitem"><b>1M+</b><span>imposter scam reports to the FTC in 2025, the top fraud type for the 9th year running</span></div>
+        <div class="stat" role="listitem"><b>$1.6B</b><span>lost to people posing as police and officials, Jan 2025 to Jul 2026 (FBI)</span></div>
+        <div class="stat" role="listitem"><b>2×</b><span>scam detections doubled from Q3 2025 to Q2 2026 (Akamai)</span></div>
+      </div>
+    </div>
+
+    <section aria-labelledby="featured-h">
+      <p id="featured-h" class="eyebrow" style="margin-bottom:10px">Top alert this week</p>
+      <div id="featured"></div>
+    </section>
+
+    <section aria-labelledby="latest-h">
+      <h2 id="latest-h">Latest scams</h2>
+      <div class="controls">
+        <div class="filters" role="group" aria-label="Filter by how the scam reaches you">
+          <button class="filter" type="button" data-f="all" aria-pressed="true">All</button>
+          <button class="filter" type="button" data-f="email" aria-pressed="false">Email</button>
+          <button class="filter" type="button" data-f="phone" aria-pressed="false">Phone</button>
+          <button class="filter" type="button" data-f="mail" aria-pressed="false">Letter</button>
+        </div>
+        <input id="q" class="search" type="search" placeholder="Search scams, e.g. toll, crypto" aria-label="Search scams">
+      </div>
+      <div class="feed" id="feed"></div>
+      <p class="empty" id="empty" hidden>No scams match that. Try another word or pick All.</p>
+    </section>
+
+    <section>
+      <div class="cta">
+        <b>Got a message that looks like one of these?</b>
+        <span class="actions"><button class="btn primary" type="button" data-go="check">Check the email</button><button class="btn" type="button" data-go="link">Check the link</button></span>
+      </div>
+    </section>
+
+    <section aria-labelledby="act-h">
+      <h2 id="act-h">If you clicked or replied</h2>
+      <ol class="steps">
+        <li><div><b>Stop and disconnect</b><span>Don't enter anything else. Close the page or hang up.</span></div></li>
+        <li><div><b>Change your password from the real site</b><span>Type the address yourself or use the official app. Sign out of other sessions.</span></div></li>
+        <li><div><b>Call your bank if you shared card details</b><span>Use the number on the back of your card, not one from the message.</span></div></li>
+        <li><div><b>Report it</b><span>US: <a href="https://reportfraud.ftc.gov" target="_blank" rel="noopener">ReportFraud.ftc.gov</a> and the FBI's <a href="https://www.ic3.gov" target="_blank" rel="noopener">ic3.gov</a>. Forward scam texts to 7726 (SPAM).</span></div></li>
+      </ol>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>The checker is a quick pattern check, not a guarantee. A clean result doesn't prove an email is safe, so when in doubt, go to the company's site yourself.</span>
+    <span>Scam summaries are written from public reporting; follow each link for the original article.</span>
+  </div>
+</footer>
+
+<script>
+/* ---------- Data: recent scams (the "why") ---------- */
+const ARTICLES = [
+  { id: "kali365", featured: true, ch: "email", tag: "Email", hot: "FBI warning", date: "13 Nov 2026", src: "Kiplinger",
+    url: "https://www.kiplinger.com/personal-finance/gadgets/new-microsoft-scam-targets-outlook-and-microsoft-365-users",
+    title: "\"Kali365\" scam takes over Microsoft 365 accounts through the real sign-in page",
+    body: "Attackers abuse Microsoft's device-code login. You get a message asking you to enter a code at a genuine Microsoft page, and doing so hands them a signed-in session for Outlook, Teams and the rest of Microsoft 365. Because the page is real and MFA isn't broken, accounts with MFA turned on can still be taken.",
+    tell: "A real Microsoft page asks you to type in a code you never asked for.",
+    keys: ["microsoft", "outlook", "office 365", "microsoft 365", "teams", "devicelogin", "device code", "enter the code", "enter code"] },
+  { id: "ezpass", ch: "email", tag: "Email", date: "13 Nov 2026", src: "CyberGuy",
+    url: "https://cyberguy.com/scams/fake-e-zpass-email-threatens-100-fine-unpaid-toll",
+    title: "Fake E-ZPass email threatens a $100 fine over an unpaid toll",
+    body: "The email claims you owe a toll, quotes federal law to sound official, and pushes a \"Pay Now\" button. E-ZPass didn't send it.",
+    tell: "Sender ends in @cashcoma.cooljz.com, not an E-ZPass domain.",
+    keys: ["e-zpass", "ezpass", "toll", "unpaid toll", "toll balance"] },
+  { id: "safepal", ch: "mail", tag: "Letter + QR", date: "13 Nov 2026", src: "Bitcoin.com News",
+    url: "https://news.bitcoin.com/security/safepal-hardware-wallet-users-receive-fake-security-alerts-mail",
+    title: "Crypto wallet owners get printed letters with a fake security alert",
+    body: "Safepal customers in Italy received paper letters warning of a firmware flaw, with a personal QR code. The letters include real customer details, likely from an earlier data breach.",
+    tell: "A physical letter asks you to scan a QR code to secure your crypto wallet.",
+    keys: ["wallet", "seed phrase", "recovery phrase", "firmware", "crypto", "bitcoin", "safepal", "ledger", "trezor", "qr code"] },
+  { id: "jobs", ch: "email", tag: "Email", date: "10 Nov 2026", src: "NBC Connecticut",
+    url: "https://www.nbcconnecticut.com/news/local/how-scammers-are-targeting-high-school-students-through-phishing-emails/3794454/",
+    title: "High school students targeted with fake part-time job emails",
+    body: "A Connecticut school district warned families about messages offering easy part-time work. Researchers say AI tools let scammers send many more of these.",
+    tell: "A job you never applied for, offered out of the blue to a student email.",
+    keys: ["part-time", "part time", "job offer", "remote job", "work from home", "hiring", "position", "per week", "per hour", "student"] },
+  { id: "frontier", ch: "email", tag: "Email", date: "2 Nov 2026", src: "WOBM",
+    url: "https://wobm.com/frontier-airlines-phishing-scam-warning-2026/",
+    title: "Frontier Airlines lookalike emails ask travelers to re-enter card details",
+    body: "Emails ask you to revalidate a flight or confirm card details to get a refund. Frontier says it never asks for this by email.",
+    tell: "An airline email asking for your card number to process a refund.",
+    keys: ["frontier", "flight", "airline", "booking", "revalidate", "itinerary", "refund"] },
+  { id: "voice", ch: "phone", tag: "Phone", date: "24 Oct 2026", src: "Fortune",
+    url: "https://fortune.com/2026/10/24/ai-voice-cloning-scam-fake-kidnapping-safe-word/",
+    title: "AI voice clones power fake-kidnapping calls",
+    body: "Scammers clone a relative's voice from a few seconds of audio and call in a panic asking for money. In one survey about 12% of reported scams involved AI or a deepfake, and the real share is likely higher.",
+    tell: "A loved one's voice, a crisis, and a demand to pay now. Agree a family safe word.",
+    keys: ["voicemail", "voice message", "kidnap", "emergency", "in trouble", "bail", "accident"] },
+  { id: "election", ch: "email", tag: "Email", date: "19 Oct 2026", src: "Technology.org",
+    url: "https://www.technology.org/2026/10/19/fbi-cisa-ai-phishing-midterms-election-officials/",
+    title: "FBI and CISA warn of AI-written phishing aimed at election officials",
+    body: "Ahead of the 3 November midterms, the agencies warned that AI is being used to write convincing, error-free phishing emails. They recommend phishing-resistant MFA such as security keys.",
+    tell: "Polished, personal emails with no typos. Good grammar no longer means it's safe.",
+    keys: ["election", "ballot", "voter", "county clerk", "poll"] },
+  { id: "ic3", ch: "phone", tag: "Phone + text", date: "7 Oct 2026", src: "Cyber Security News",
+    url: "https://cybersecuritynews.com/fbi-warns-of-scammers-mimic-as-ic3-employees/",
+    title: "Scammers pose as FBI staff offering to recover your lost money",
+    body: "Fraud victims are contacted by people claiming to work for the FBI or its IC3 complaint center, promising to get their money back for a fee. Impersonation of police and officials cost victims over $1.6 billion from Jan 2025 to Jul 2026.",
+    tell: "\"Law enforcement\" contacts you first and asks for payment or personal details.",
+    keys: ["fbi", "ic3", "police", "law enforcement", "warrant", "arrest", "recover your funds", "recover your money", "federal agent", "irs"] }
+];
+
+/* ---------- Tabs ---------- */
+const views = { check: document.getElementById("view-check"), link: document.getElementById("view-link"), news: document.getElementById("view-news") };
+function show(view, scroll = true) {
+  if (!views[view]) view = "check";
+  for (const [k, el] of Object.entries(views)) el.hidden = k !== view;
+  document.querySelectorAll(".switch button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === view)));
+  if (location.hash !== "#" + view) history.replaceState(null, "", "#" + view);
+  if (scroll) window.scrollTo({ top: 0 });
+}
+document.querySelectorAll("[data-view],[data-go]").forEach(b => b.addEventListener("click", () => show(b.dataset.view || b.dataset.go)));
+window.addEventListener("hashchange", () => show(location.hash.slice(1), false));
+
+/* ---------- Article rendering ---------- */
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function cardHTML(a, cls = "card") {
+  return `<article class="${cls}">
+    <div class="meta">${a.hot ? `<span class="pill hot">${esc(a.hot)}</span>` : ""}<span class="pill">${esc(a.tag)}</span><span>${esc(a.date)}</span><span>· ${esc(a.src)}</span></div>
+    <h3>${esc(a.title)}</h3>
+    <p>${esc(a.body)}</p>
+    <div class="tell">${esc(a.tell)}</div>
+    <a class="readmore" href="${a.url}" target="_blank" rel="noopener">Read on ${esc(a.src)} →</a>
+  </article>`;
+}
+document.getElementById("featured").innerHTML = cardHTML(ARTICLES.find(a => a.featured), "featured");
+document.getElementById("newsCount").textContent = ARTICLES.length;
+
+const feed = document.getElementById("feed"), empty = document.getElementById("empty"), q = document.getElementById("q");
+let filter = "all";
+function renderFeed() {
+  const term = q.value.trim().toLowerCase();
+  const list = ARTICLES.filter(a => !a.featured &&
+    (filter === "all" || a.ch === filter) &&
+    (!term || (a.title + a.body + a.tell + a.tag).toLowerCase().includes(term)));
+  feed.innerHTML = list.map(a => cardHTML(a)).join("");
+  empty.hidden = list.length > 0;
+}
+document.querySelectorAll(".filter").forEach(b => b.addEventListener("click", () => {
+  filter = b.dataset.f;
+  document.querySelectorAll(".filter").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  renderFeed();
+}));
+q.addEventListener("input", renderFeed);
+renderFeed();
+
+/* ---------- Email checker ---------- */
+const BRANDS = {
+  microsoft: ["microsoft", "outlook", "office 365", "microsoft 365", "onedrive"],
+  ezpass: ["e-zpass", "ezpass"],
+  paypal: ["paypal"], amazon: ["amazon"], apple: ["apple", "icloud"], netflix: ["netflix"],
+  google: ["google", "gmail"], usps: ["usps", "postal service"], fedex: ["fedex"], ups: ["ups package", "ups delivery"],
+  dhl: ["dhl"], irs: ["irs", "internal revenue"], flyfrontier: ["frontier airlines"], chase: ["chase bank", "jpmorgan"],
+  wellsfargo: ["wells fargo"], bankofamerica: ["bank of america"], coinbase: ["coinbase"], venmo: ["venmo"], zelle: ["zelle"]
+};
+const FREE_MAIL = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com", "icloud.com", "proton.me", "protonmail.com", "gmx.com", "mail.com"];
+const RISKY_TLDS = ["top", "xyz", "icu", "click", "shop", "cfd", "sbs", "live", "buzz", "rest", "zip", "mov", "info", "online", "site", "cyou", "monster", "lol", "tk", "ml", "ga", "cf", "gq"];
+const SHORTENERS = ["bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "rb.gy", "t.ly"];
+const URGENCY = ["urgent", "immediately", "within 24 hours", "within 48 hours", "final notice", "final warning", "act now", "suspended", "will be suspended", "locked", "deactivated", "expire", "expires today", "last chance", "penalty", "late fee", "fine", "legal action", "unusual activity", "unauthorized"];
+const SENSITIVE = ["password", "verification code", "one-time code", "security code", "card number", "credit card", "debit card", "cvv", "social security", "ssn", "bank account", "routing number", "login details", "verify your account", "confirm your identity", "update your payment", "billing information", "seed phrase", "recovery phrase"];
+const PAYMENT = ["gift card", "itunes card", "google play card", "bitcoin", "crypto", "usdt", "wire transfer", "western union", "moneygram", "zelle", "cash app", "venmo"];
+const BAIT = ["refund", "you have won", "you've won", "congratulations", "prize", "reward", "claim your", "free gift", "inheritance", "job offer", "part-time", "part time", "per week", "lottery", "unclaimed"];
+const GENERIC = ["dear customer", "dear user", "dear client", "dear member", "valued customer", "dear account holder", "dear sir/madam", "hello user"];
+// Each pattern catches a brand spelled with swapped characters; the real spelling is excluded.
+const LOOKALIKE = [[/pay[p][a@][l1i|]{1,2}/, "paypal"], [/m[i1l]cr[o0]s[o0]f[t7]|rnicrosoft/, "microsoft"], [/[a@]m[a@]z[o0][nm]|arnazon/, "amazon"],
+  [/[a@]pp[l1i]e/, "apple"], [/g[o0][o0]g[l1i]e/, "google"], [/netf[l1i]{1,2}x/, "netflix"], [/c[o0][i1l]nb[a@]se/, "coinbase"]];
+function isLookalike(s) { return LOOKALIKE.some(([re, real]) => { const m = s.match(re); return m && m[0] !== real; }); }
+
+function wordRe(w) { return new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])"); }
+function hasAny(text, list) { return list.filter(w => wordRe(w).test(text)); }
+function domainOf(addr) { const m = addr.toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})/); return m ? m[1] : ""; }
+function rootOf(d) {
+  const p = d.split(".");
+  const n = p.length >= 3 && p[p.length - 1].length === 2 && ["co", "com", "org", "gov", "ac", "net"].includes(p[p.length - 2]) ? 3 : 2;
+  return p.slice(-n).join(".");
+}
+
+function analyze(from, subject, body) {
+  const text = (subject + "\n" + body).toLowerCase();
+  const fromL = from.trim().toLowerCase();
+  const sd = domainOf(fromL);
+  const out = [];
+  const add = (sev, title, detail, pts) => out.push({ sev, title, detail, pts });
+
+  // Sender checks
+  const mentionedBrands = Object.entries(BRANDS).filter(([, words]) => hasAny(text, words).length).map(([b]) => b);
+  if (sd) {
+    const tld = sd.split(".").pop();
+    if (FREE_MAIL.includes(sd) && mentionedBrands.length)
+      add("high", "A company email sent from a personal account", `It talks about <code>${esc(mentionedBrands[0])}</code> but came from <code>${esc(sd)}</code>. Real companies don't email you from free accounts.`, 30);
+    else if (mentionedBrands.length && !mentionedBrands.some(b => sd.replace(/[-.]/g, "").includes(b)))
+      add("high", "Sender doesn't match the company", `It claims to be <code>${esc(mentionedBrands[0])}</code> but the address ends in <code>${esc(sd)}</code>.`, 30);
+    else {
+      const brandHit = mentionedBrands.find(b => sd.replace(/[-.]/g, "").includes(b));
+      const lbl = rootOf(sd).split(".")[0].replace(/-/g, "");
+      if (brandHit && !FREE_MAIL.includes(sd)) {
+        if (!lbl.includes(brandHit))
+          add("high", "Brand name placed in front of a different website", `<code>${esc(sd)}</code> really belongs to <code>${esc(rootOf(sd))}</code>, not ${esc(brandHit)}.`, 30);
+        else if (/(secure|alert|verify|login|support|service|billing|account|pay|update|help|notice|team)/.test(lbl.replace(brandHit, "")))
+          add("high", "Brand name mixed with extra words", `<code>${esc(sd)}</code> isn't the company's real address. Scammers add words like "alerts" or "secure" to a brand name.`, 25);
+      }
+    }
+    if (RISKY_TLDS.includes(tld))
+      add("med", "Unusual web ending in the sender address", `<code>.${esc(tld)}</code> addresses are cheap and common in scams. Big companies rarely use them.`, 15);
+    if (/\d{3,}/.test(sd) || sd.split(".").length > 3)
+      add("med", "Odd-looking sender domain", `<code>${esc(sd)}</code> has lots of numbers or extra parts, a common way to fake an address.`, 10);
+    if (isLookalike(sd))
+      add("high", "Lookalike spelling in the sender", `<code>${esc(sd)}</code> swaps letters to imitate a brand (like 1 for l, 0 for o).`, 30);
+  } else if (fromL) {
+    add("low", "Couldn't read the sender address", "Paste the full address, the part inside < >, for a better check.", 0);
+  }
+
+  // Links
+  const urls = [...(subject + " " + body).matchAll(/\b((?:https?:\/\/|www\.)[^\s<>"')\]]+)/gi)].map(m => m[1]);
+  const seen = new Set();
+  for (const u of urls) {
+    let host = "";
+    try { host = new URL(u.startsWith("http") ? u : "http://" + u).hostname.toLowerCase(); } catch { continue; }
+    if (seen.has(host)) continue; seen.add(host);
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) add("high", "Link goes to a bare number address", `<code>${esc(host)}</code> is an IP address instead of a website name. Legit companies don't do this.`, 30);
+    else if (SHORTENERS.includes(host)) add("med", "Link is shortened and hides where it goes", `<code>${esc(host)}</code> links hide the real destination.`, 15);
+    else if (host.startsWith("xn--") || host.includes(".xn--")) add("high", "Link uses disguised characters", `<code>${esc(host)}</code> uses foreign characters that can look like normal letters.`, 30);
+    else if (isLookalike(host)) add("high", "Link imitates a brand name", `<code>${esc(host)}</code> misspells a well-known brand.`, 30);
+    else {
+      if (RISKY_TLDS.includes(host.split(".").pop())) add("med", "Link has an unusual web ending", `<code>${esc(host)}</code>`, 12);
+      if (sd && rootOf(host) !== rootOf(sd) && !FREE_MAIL.includes(sd) && mentionedBrands.length && !mentionedBrands.some(b => host.replace(/[-.]/g, "").includes(b)))
+        add("med", "Link goes somewhere other than the company", `It claims to be <code>${esc(mentionedBrands[0])}</code> but links to <code>${esc(host)}</code>.`, 15);
+    }
+    if (u.toLowerCase().startsWith("http://")) add("low", "Link isn't secure (http)", `<code>${esc(host)}</code> doesn't use https.`, 5);
+  }
+  if (!urls.length && /click here|click the link|click below|tap here|pay now|verify now/.test(text))
+    add("low", "Asks you to click, but the link wasn't pasted", "Hover over the button in the real email (don't click) and paste the address it shows.", 5);
+
+  // Content
+  const u = hasAny(text, URGENCY);
+  if (u.length) add(u.length > 1 ? "high" : "med", "Pressure to act fast", `Words like <code>${esc(u.slice(0, 3).join("</code>, <code>"))}</code> are meant to rush you past thinking.`, u.length > 1 ? 20 : 12);
+  const s = hasAny(text, SENSITIVE);
+  if (s.length) add("high", "Asks for private information", `Mentions <code>${esc(s.slice(0, 3).join("</code>, <code>"))}</code>. Real companies don't ask for this by email.`, 25);
+  const p = hasAny(text, PAYMENT);
+  if (p.length) add("high", "Wants an unusual way to pay", `<code>${esc(p.slice(0, 3).join("</code>, <code>"))}</code> payments are hard to get back. Scammers prefer them.`, 25);
+  const b = hasAny(text, BAIT);
+  if (b.length) add("med", "Offers something you weren't expecting", `<code>${esc(b.slice(0, 3).join("</code>, <code>"))}</code>: a refund, prize or job out of nowhere is a classic hook.`, 12);
+  const g = hasAny(text, GENERIC);
+  if (g.length) add("low", "Doesn't use your name", `<code>${esc(g[0])}</code>: companies you deal with usually know your name.`, 8);
+  if (/qr code|scan the code|scan this code/.test(text)) add("med", "Asks you to scan a QR code", "QR codes hide the web address, so you can't check it before it opens.", 12);
+  if (/devicelogin|device code|enter (the|this) code|enter code/.test(text)) add("high", "Asks you to enter a code on a sign-in page", "This is how the Kali365 scam takes over Microsoft accounts, even on the real Microsoft site.", 30);
+  if (/attach(ed|ment)|\.(zip|html?|iso|exe|docm|xlsm)\b/.test(text) && /(invoice|open|download|view)/.test(text)) add("med", "Pushes you to open an attachment", "Unexpected invoices or files are a common way to install malware.", 10);
+
+  // Score
+  const score = Math.min(100, out.reduce((n, f) => n + f.pts, 0));
+  const matches = ARTICLES.map(a => ({ a, hits: a.keys.filter(k => wordRe(k).test(text) || (k.length > 4 && sd.includes(k.replace(/[^a-z]/g, "")))).length }))
+    .filter(m => m.hits).sort((x, y) => y.hits - x.hits).slice(0, 2).map(m => m.a);
+  return { score, findings: out.sort((x, y) => y.pts - x.pts), matches };
+}
+
+/* ---------- Link checker ---------- */
+const LINK_BRANDS = ["microsoft", "outlook", "office365", "paypal", "amazon", "apple", "icloud", "netflix", "google", "gmail", "usps", "fedex", "ups", "dhl", "irs", "ezpass", "chase", "wellsfargo", "bankofamerica", "coinbase", "venmo", "zelle", "facebook", "instagram", "whatsapp", "walmart", "frontier"];
+const KNOWN_GOOD = ["microsoft.com", "office.com", "office365.com", "live.com", "outlook.com", "microsoftonline.com", "sharepoint.com", "google.com", "gmail.com", "youtube.com", "apple.com", "icloud.com", "amazon.com", "amazon.co.uk", "paypal.com", "netflix.com", "usps.com", "fedex.com", "ups.com", "dhl.com", "irs.gov", "chase.com", "wellsfargo.com", "bankofamerica.com", "coinbase.com", "venmo.com", "zellepay.com", "facebook.com", "instagram.com", "whatsapp.com", "walmart.com", "flyfrontier.com"];
+const EXTRA_WORDS = /(secure|alert|verify|login|signin|support|service|billing|account|pay|update|help|notice|team|refund|confirm|wallet)/;
+
+function analyzeLink(raw) {
+  const s = raw.trim().replace(/^<|>$/g, "");
+  if (!s || /\s/.test(s)) return null;
+  const hadScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(s);
+  let url;
+  try { url = new URL(hadScheme ? s : "http://" + s); } catch { return null; }
+  const fullHost = url.hostname.toLowerCase();
+  const host = fullHost.replace(/^www\./, "");
+  if (!host.includes(".")) return null;
+  const out = [];
+  const add = (sev, title, detail, pts) => out.push({ sev, title, detail, pts });
+  const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(host);
+  const root = isIP ? host : rootOf(host);
+  const label = root.split(".")[0].replace(/-/g, "");
+  const tld = host.split(".").pop();
+  const sub = isIP ? "" : host.slice(0, host.length - root.length);
+  const flat = host.replace(/-/g, "");
+  const hostTokens = host.split(/[.-]/);
+  const pathTokens = (url.pathname + url.search).toLowerCase().split(/[^a-z0-9]+/);
+  const trusted = KNOWN_GOOD.includes(root);
+
+  if (hadScheme && !/^https?:$/.test(url.protocol)) add("high", "Not a normal web link", `It starts with <code>${esc(url.protocol)}</code> instead of https.`, 50);
+  if (isIP) add("high", "Goes to a bare number address", `<code>${esc(host)}</code> is an IP address, not a website name. Real companies don't send links like this.`, 50);
+  if (url.username || /\/\/[^/]*@/.test(s)) add("high", "Real address is hidden behind an @ sign", `Everything before the <code>@</code> is ignored. The link really goes to <code>${esc(host)}</code>.`, 50);
+  if (SHORTENERS.includes(host)) add("med", "Shortened link hides where it goes", `<code>${esc(host)}</code> is a link shortener, so the real destination can't be seen. Be extra careful if you didn't expect it.`, 25);
+  if (host.startsWith("xn--") || host.includes(".xn--")) add("high", "Uses disguised characters", `<code>${esc(host)}</code> contains foreign letters that can look identical to normal ones.`, 50);
+  if (isLookalike(flat)) add("high", "Misspells a well-known brand", `<code>${esc(host)}</code> swaps characters (like 1 for l, 0 for o) to look like a real company.`, 50);
+
+  if (!trusted && !isIP) {
+    const brand = LINK_BRANDS.find(b => b.length >= 6 ? flat.includes(b) : hostTokens.includes(b));
+    if (brand) {
+      if (!label.includes(brand))
+        add("high", "Brand name placed in front of a different website", `It shows <code>${esc(brand)}</code>, but the site is really <code>${esc(root)}</code>. Only the highlighted part above decides where you land.`, 50);
+      else if (label !== brand && EXTRA_WORDS.test(label.replace(brand, "")))
+        add("high", "Brand name mixed with extra words", `<code>${esc(root)}</code> isn't the company's real site. Scammers add words like "secure" or "pay" to a brand name.`, 50);
+    } else {
+      const pb = LINK_BRANDS.find(b => pathTokens.includes(b));
+      if (pb) add("med", "Brand name appears only after the slash", `<code>${esc(pb)}</code> is in the page path, but the website is <code>${esc(root)}</code>. Anyone can put any name there.`, 15);
+    }
+  }
+  if (RISKY_TLDS.includes(tld)) add("med", "Unusual web ending", `<code>.${esc(tld)}</code> addresses are cheap and common in scams. Big companies rarely use them.`, 15);
+  if (!isIP && sub.split(".").filter(Boolean).length >= 3) add("med", "Lots of parts before the real site name", `Long chains like <code>${esc(sub.replace(/\.$/, ""))}</code> are used to push the real site out of view.`, 12);
+  if ((host.match(/-/g) || []).length >= 3) add("low", "Many dashes in the address", "Real company sites rarely look like this.", 8);
+  if (url.port) add("med", "Uses an unusual port number", `<code>:${esc(url.port)}</code> after the site name is rare on real public websites.`, 12);
+  if (hadScheme && url.protocol === "http:") add("low", "Not secure (http)", "It doesn't use https, so anything you type could be read by others.", 8);
+  if (out.length && pathTokens.some(t => /^(login|signin|verify|secure|account|update|confirm|password|billing|wallet|pay|payment|settle|refund)$/.test(t)))
+    add("low", "Page name asks for a login or payment", "On a site that already looks suspicious, this is where details get stolen.", 6);
+
+  const score = Math.min(100, out.reduce((n, f) => n + f.pts, 0));
+  const toks = [...hostTokens, ...pathTokens];
+  const matches = score < 20 ? [] : ARTICLES.map(a => ({ a, hits: a.keys.map(k => k.replace(/[^a-z0-9]/g, "")).filter(k => k.length > 3 && toks.some(t => t === k || (k.length >= 5 && t.includes(k)))).length }))
+    .filter(m => m.hits).sort((x, y) => y.hits - x.hits).slice(0, 1).map(m => m.a);
+  const where = `<div class="where"><span class="lbl">This link really goes to</span>
+    <span class="host">${esc(sub)}<b>${esc(root)}</b></span>
+    <small>${trusted ? "This is a well-known website. Still be careful if the message asks you to enter a code or pay." : "The highlighted part is the actual website. Everything else in the link is just decoration."}</small></div>`;
+  return { score, findings: out.sort((x, y) => y.pts - x.pts), matches, where };
+}
+
+const form = document.getElementById("form"), result = document.getElementById("result");
+const fFrom = document.getElementById("from"), fSub = document.getElementById("subject"), fBody = document.getElementById("body");
+
+function renderResult(r, el = result, kind = "email") {
+  const level = r.score >= 50 ? "bad" : r.score >= 20 ? "mid" : "good";
+  const head = { bad: "Very likely a phishing " + kind, mid: "Be careful with this one", good: "No major warning signs found" }[level];
+  const sub = {
+    bad: "Don't click any links, reply or pay. If it claims to be a company you use, go to their site or app yourself.",
+    mid: "Something's off. Check with the company directly using a number or site you already know.",
+    good: "That doesn't prove it's safe. If it asks for money or a login, still go to the site yourself."
+  }[level];
+  const sevLabel = { high: "High risk", med: "Warning", low: "Minor" };
+  let html = `<div class="verdict ${level}"><div class="gauge" aria-label="Risk score ${r.score} out of 100">${r.score}</div>
+    <div><h3>${head}</h3><p>${sub}</p></div></div>`;
+  html += r.where || "";
+  if (r.findings.length) {
+    html += `<p class="subhead">What we found (${r.findings.length})</p><ul class="findings">` +
+      r.findings.map(f => `<li class="finding"><span class="sev ${f.sev}">${sevLabel[f.sev]}</span><div><b>${f.title}</b><span>${f.detail}</span></div></li>`).join("") + `</ul>`;
+  } else {
+    html += `<ul class="findings"><li class="finding"><span class="sev pass">Clear</span><div><b>None of our checks were triggered</b><span>Sender, links and wording looked normal.</span></div></li></ul>`;
+  }
+  if (r.matches.length) {
+    html += `<p class="subhead">This looks like a real scam reported recently</p>` + r.matches.map(a => cardHTML(a, "card match")).join("");
+  }
+  html += `<p class="note">The score is out of 100 and adds up the warning signs found. It's a quick check, not a guarantee.</p>`;
+  el.innerHTML = html;
+  el.hidden = false;
+}
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  if (!fFrom.value.trim() && !fSub.value.trim() && !fBody.value.trim()) {
+    result.hidden = false;
+    result.innerHTML = `<p class="empty">Paste the sender, subject or email text first, or tap "Try an example".</p>`;
+    return;
+  }
+  renderResult(analyze(fFrom.value, fSub.value, fBody.value));
+  result.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+});
+document.getElementById("sample").addEventListener("click", () => {
+  fFrom.value = "E-ZPass Service <notice@cashcoma.cooljz.com>";
+  fSub.value = "FINAL NOTICE: Unpaid toll balance on your account";
+  fBody.value = "Dear customer,\n\nOur records show an unpaid toll balance of $6.99 on your E-ZPass account. Under federal law you must settle this balance within 24 hours or a $100 late fee will be added and your driving privileges may be suspended.\n\nPay now to avoid penalty:\nhttp://ezpass-tollpay.top/settle?id=88213\n\nPlease have your card number ready.\n\nE-ZPass Customer Service";
+  form.requestSubmit();
+});
+document.getElementById("clear").addEventListener("click", () => { fFrom.value = fSub.value = fBody.value = ""; result.hidden = true; fFrom.focus(); });
+
+const linkForm = document.getElementById("linkForm"), linkResult = document.getElementById("linkResult"), fUrl = document.getElementById("url");
+linkForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const r = analyzeLink(fUrl.value);
+  if (!r) {
+    linkResult.hidden = false;
+    linkResult.innerHTML = `<p class="empty">${fUrl.value.trim() ? "That doesn't look like a link. Paste the full address, like https://example.com/page." : "Paste a link first, or tap \"Try an example\"."}</p>`;
+    return;
+  }
+  renderResult(r, linkResult, "link");
+  linkResult.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+});
+document.getElementById("linkSample").addEventListener("click", () => { fUrl.value = "http://ezpass-tollpay.top/settle?id=88213"; linkForm.requestSubmit(); });
+document.getElementById("linkClear").addEventListener("click", () => { fUrl.value = ""; linkResult.hidden = true; fUrl.focus(); });
+
+show(location.hash.slice(1) || "check", false);
+</script>
+</body>
+</html>
