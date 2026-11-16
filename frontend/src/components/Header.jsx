@@ -1,26 +1,50 @@
-export default function Header() {
+const TABS = [
+  { view: 'check', label: 'Email checker' },
+  { view: 'link', label: 'Check links' },
+  { view: 'news', label: 'Scam news' },
+]
+
+export function Logo({ size = 24 }) {
   return (
-    <header className="border-b border-rule bg-surface">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-        <a href="/" className="flex items-center gap-2.5 rounded text-lg font-bold tracking-tight">
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 2.5 4 5.5v6.2c0 4.6 3.3 8.6 8 9.8 4.7-1.2 8-5.2 8-9.8V5.5l-8-3Z" fill="#172033" />
-            <path d="M8 12.2h8" stroke="#FFE27A" strokeWidth="3" strokeLinecap="round" />
-          </svg>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="7" stroke="currentColor" strokeWidth="2.2" fill="none" />
+      <path d="M15.8 15.8 21 21" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+      <path
+        d="M7.4 10.7l2.2 2.2 4-4.4"
+        stroke="var(--accent)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  )
+}
+
+export default function Header({ view, onChange, storyCount }) {
+  return (
+    <header className="topbar">
+      <div className="wrap">
+        <div className="brand">
+          <Logo />
           Baitcheck
-        </a>
-        <nav className="flex items-center gap-4 text-sm sm:gap-6 font-medium text-muted">
-          <a href="#news" className="rounded hover:text-ink">News</a>
-          <a href="#how-it-works" className="rounded hover:text-ink">How it works</a>
-          <a
-            href="https://github.com/neethanjayaseelan/Baitcheck"
-            className="rounded hover:text-ink"
-            target="_blank"
-            rel="noreferrer"
-          >
-            GitHub
-          </a>
-        </nav>
+        </div>
+        <div className="switch" role="tablist" aria-label="Choose a tool">
+          {TABS.map((tab) => (
+            <button
+              key={tab.view}
+              type="button"
+              role="tab"
+              id={`tab-${tab.view}`}
+              aria-controls={`view-${tab.view}`}
+              aria-selected={view === tab.view}
+              onClick={() => onChange(tab.view)}
+            >
+              {tab.label}
+              {tab.view === 'news' && <span className="count">{storyCount}</span>}
+            </button>
+          ))}
+        </div>
       </div>
     </header>
   )

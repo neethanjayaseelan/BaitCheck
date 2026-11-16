@@ -24,3 +24,6 @@ Thumbs.db
 
 # Old files kept locally, not part of the project
 _archive/
+
+# Claude Code local settings
+.claude/
