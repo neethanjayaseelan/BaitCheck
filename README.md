@@ -43,8 +43,8 @@ React UI  ──GET /news──▶  Flask API  ──▶  Google News RSS (6 cou
 **Requirements:** Python 3.10+ and Node.js 18+
 
 ```bash
-git clone https://github.com/neethanjayaseelan/Baitcheck.git
-cd Baitcheck
+git clone https://github.com/neethanjayaseelan/LinkGuard.git
+cd LinkGuard
 ```
 
 ### Quick start (Windows)
