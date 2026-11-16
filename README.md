@@ -1,13 +1,13 @@
 # Baitcheck: Phishing Message Detector
 
-Baitcheck is a full-stack web app that checks emails and messages for phishing and tracks real phishing scams in the news. Paste a suspicious message and it returns:
+Baitcheck is a full-stack web app that checks emails and messages for phishing and shows six major phishing attacks from the last ten years. Paste a suspicious message and it returns:
 
 - a **phishing probability** from a machine-learning text classifier
 - a **risk level** (Low / Medium / High)
 - the **red flags** it found (urgent language, credential requests, suspicious links, brand impersonation)
 - **recommended next steps**
 
-It also shows a live feed of recent phishing and scam stories from news outlets in six countries (US, UK, Canada, India, Australia, Singapore) and from security news sites.
+It also tells the story of six major phishing attacks from 2016 to 2024 (including the Arup deepfake call, the MGM help-desk call and the Podesta email), each with the lesson it teaches and a link to a source.
 
 <!-- Add a screenshot: save one as docs/screenshot.png and uncomment the line below -->
 <!-- ![Baitcheck screenshot](docs/screenshot.png) -->
@@ -17,7 +17,7 @@ It also shows a live feed of recent phishing and scam stories from news outlets 
 | Layer | Tools |
 |---|---|
 | Frontend | React 18, Vite, Tailwind CSS |
-| Backend | Python, Flask REST API, RSS aggregation (standard library), unittest |
+| Backend | Python, Flask REST API |
 | Machine learning | scikit-learn (TF-IDF + logistic regression), pandas, joblib |
 | Alternative UI | Streamlit |
 
@@ -29,14 +29,12 @@ React UI  ──POST /analyze──▶  Flask API  ──▶  TF-IDF + Logistic 
    │                              └──▶  Rule-based checks (why it was flagged)
    └── falls back to keyword rules in the browser if the API is offline
 
-React UI  ──GET /news──▶  Flask API  ──▶  Google News RSS (6 countries) + security news RSS
-                                           (filtered, de-duplicated, cached for 30 minutes)
 ```
 
 1. **Training** (`backend/train_model.py`): loads labelled messages from `data/phishingdata.csv`, turns the text into TF-IDF features (single words and two-word phrases), trains a logistic regression classifier, reports hold-out and 5-fold cross-validation accuracy, and saves the model.
 2. **Inference** (`backend/server.py`): a Flask API loads the model and exposes `POST /analyze`. It combines the model's probability with regex-based indicators that explain the result.
 3. **Frontend** (`frontend/`): a React app sends the message to the API, shows the score on a risk meter, and highlights the suspicious phrases inside the message itself. If the API can't be reached, it falls back to an in-browser rule-based check and labels the result accordingly.
-4. **Scam news** (`backend/news.py`): fetches public RSS feeds in parallel, keeps only phishing and scam stories, removes duplicates, sorts newest first, and limits how many stories one country or site can contribute so the list stays international. Results are cached for 30 minutes, and the last good list is kept if the feeds are unreachable.
+4. **Scam news** (`frontend/src/components/ScamNews.jsx`): six fixed stories of major phishing attacks, written into the page. This section needs no backend or internet connection.
 
 ## Getting started
 
@@ -76,9 +74,9 @@ Optional Streamlit UI: `cd backend && streamlit run streamlit_app.py`
 
 - **Email checker**: paste a sender, subject and message to get a 0–100 risk score and the warning signs found.
 - **Check links**: paste a link to see the real website behind it and the tricks used to disguise it (lookalike spellings, a brand name in front of another site, shorteners, `@` tricks).
-- **Scam news**: short write-ups of recent phishing scams, each linked to its source.
+- **Scam news**: six major phishing attacks from the last ten years, each with its lesson and a source link.
 
-This version uses rule-based checks only (no machine-learning model), and its scam articles are written into the page rather than fetched live.
+This version uses rule-based checks only (no machine-learning model).
 
 ## API
 
@@ -103,30 +101,7 @@ Response:
 }
 ```
 
-`GET /news?limit=9` returns recent stories:
-
-```json
-{
-  "stories": [
-    {
-      "title": "Police warn of fake parking fine texts",
-      "source": "BBC",
-      "region": "United Kingdom",
-      "published": "2026-11-16T09:00:00+00:00",
-      "url": "https://news.google.com/..."
-    }
-  ]
-}
-```
-
 `GET /health` returns `{ "status": "ok" }`.
-
-## Tests
-
-```bash
-cd backend
-python -m unittest discover tests
-```
 
 ## Project structure
 
@@ -134,8 +109,6 @@ python -m unittest discover tests
 ├── backend/
 │   ├── server.py          # Flask REST API
 │   ├── analyzer.py        # model loading, scoring and red-flag detection
-│   ├── news.py            # live phishing/scam news from RSS feeds
-│   ├── tests/             # unit tests for the news feed
 │   ├── train_model.py     # training and evaluation script
 │   ├── streamlit_app.py   # optional Streamlit interface
 │   └── requirements.txt
@@ -157,6 +130,7 @@ python -m unittest discover tests
 - Add URL analysis (domain age, lookalike domains, URL features) alongside the text model.
 - Deploy the API (e.g. Render) and the frontend (e.g. Vercel) for a live demo.
 - Add unit tests for the analyzer and API.
+- Refresh the six scam stories as newer major cases come out.
 
 ## License
 

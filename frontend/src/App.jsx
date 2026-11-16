@@ -99,7 +99,7 @@ export default function App() {
           </aside>
         </div>
 
-        <ScamNews apiUrl={API_URL} />
+        <ScamNews />
         <HowItWorks />
       </main>
     </div>

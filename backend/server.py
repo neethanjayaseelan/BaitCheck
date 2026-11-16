@@ -1,4 +1,4 @@
-"""Flask API that serves phishing predictions and scam news to the Baitcheck frontend.
+"""Flask API that serves phishing predictions to the Baitcheck frontend.
 
 Run:  python server.py   (listens on http://localhost:5000)
 """
@@ -8,7 +8,6 @@ import os
 from flask import Flask, jsonify, request
 
 from analyzer import analyze, load_model
-from news import get_stories
 
 MAX_TEXT_LENGTH = 20_000
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
@@ -44,15 +43,6 @@ def analyze_message():
         return jsonify({"error": f"Text must be under {MAX_TEXT_LENGTH} characters."}), 413
 
     return jsonify(analyze(text, model))
-
-
-@app.get("/news")
-def news():
-    limit = min(max(request.args.get("limit", 9, type=int), 1), 30)
-    stories = get_stories(limit)
-    if not stories:
-        return jsonify({"error": "News feeds are unavailable right now.", "stories": []}), 503
-    return jsonify({"stories": stories})
 
 
 if __name__ == "__main__":
